@@ -147,6 +147,34 @@ SOPS 可執行檔的路徑。如果 sops 在 PATH 中，可以使用 `"sops"`。
 確保您已閱讀並遵循 [擴充功能指南](https://code.visualstudio.com/api/references/extension-guidelines)。
 
 ----
+## 自動發版
+
+專案已配置 GitHub Actions workflow 來自動進行發版：
+
+### 使用方式
+
+1. **手動觸發發版**：
+   - 前往 GitHub Actions 頁面
+   - 選擇 "Release" workflow
+   - 點擊 "Run workflow"
+   - 輸入版本號（例如：`0.0.4`，不需要 `v` 前綴）
+   - Workflow 會自動：
+     - 更新 `package.json` 中的版本號
+     - Commit 變更到 main 分支
+     - 建立並推送版本標籤（例如：`v0.0.4`）
+     - 編譯並打包擴充功能
+     - 建立 GitHub Release 並上傳 `.vsix` 檔案
+
+2. **透過標籤觸發**：
+   - 手動建立並推送版本標籤（例如：`git tag v0.0.4 && git push origin v0.0.4`）
+   - Workflow 會自動編譯、打包並建立 GitHub Release
+
+### Workflow 檔案位置
+
+`.github/workflows/release.yml`
+
+---
+
 ## Install local build and Install to Vscode or Cursor
 1. 
 ```bash

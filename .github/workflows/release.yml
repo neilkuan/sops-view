@@ -1,0 +1,126 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'  # 當推送版本標籤時觸發，例如 v0.0.3
+  workflow_dispatch:  # 允許手動觸發
+    inputs:
+      version:
+        description: 'Version number (e.g., 0.0.4)'
+        required: true
+        type: string
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # 需要寫入權限來建立 release 和 commit
+      id-token: write  # 用於 GitHub token
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0  # 需要完整的 git 歷史來建立 tag
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Get version from tag or input
+        id: get_version
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+            # 確保版本號格式正確（移除可能的 v 前綴）
+            VERSION=${VERSION#v}
+          else
+            VERSION=${GITHUB_REF#refs/tags/v}
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "version_tag=v$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Update version in package.json (if workflow_dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          VERSION="${{ steps.get_version.outputs.version }}"
+          # 使用 node 來更新 package.json
+          node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            pkg.version = '$VERSION';
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          "
+          echo "Updated package.json version to $VERSION"
+
+      - name: Commit version update (if workflow_dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          git add package.json
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: bump version to ${{ steps.get_version.outputs.version }}"
+            git push origin main
+          fi
+
+      - name: Create and push tag (if workflow_dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          TAG="${{ steps.get_version.outputs.version_tag }}"
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin "$TAG"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Compile and package
+        run: pnpm run compile && node package-vsix.js
+
+      - name: Find VSIX file
+        id: find_vsix
+        run: |
+          # 尋找符合 sops-view-0.0.*.vsix 模式的檔案
+          VSIX_FILE=$(find . -name "sops-view-*.vsix" -type f | head -n 1)
+          if [ -z "$VSIX_FILE" ]; then
+            echo "Error: VSIX file not found"
+            exit 1
+          fi
+          echo "vsix_file=$VSIX_FILE" >> $GITHUB_OUTPUT
+          echo "Found VSIX file: $VSIX_FILE"
+          ls -lh "$VSIX_FILE"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.get_version.outputs.version_tag }}
+          name: Release ${{ steps.get_version.outputs.version_tag }}
+          body: |
+            ## Release ${{ steps.get_version.outputs.version_tag }}
+            
+            ### Installation
+            Download the `.vsix` file and install it in VSCode/Cursor:
+            - Command + Shift + P > Extensions: Install from VSIX
+            
+            ### Changes
+            See [CHANGELOG.md](./CHANGELOG.md) for details.
+          files: ${{ steps.find_vsix.outputs.vsix_file }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
