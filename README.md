@@ -10,6 +10,21 @@
 - 🔐 **AWS KMS 支援**：自動根據 KMS ARN 判斷 AWS Account ID，並使用對應的 AWS Profile
 - 🎯 **自訂檔案模式**：可自訂需要解密的檔案名稱模式
 
+## 安裝
+
+詳細的安裝說明請參考 [INSTALL.md](./INSTALL.md)
+
+### 快速開始（開發模式）
+
+1. 安裝依賴：`pnpm install`
+2. 編譯擴充功能：`pnpm run compile`
+3. 按 `F5` 啟動擴充功能開發主機進行測試
+
+### 打包安裝
+
+1. 打包：`pnpm run package && pnpm run package:vsix`
+2. 在 VSCode 中安裝：`Extensions: Install from VSIX...`，然後選擇生成的 `.vsix` 檔案
+
 ## 需求
 
 - [SOPS](https://github.com/getsops/sops) 必須已安裝並可在 PATH 中使用

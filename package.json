@@ -2,9 +2,17 @@
   "name": "sops-view",
   "displayName": "sops-view",
   "description": "The extension for view/edit encrypt file by sops.",
-  "version": "0.0.1",
+  "version": "0.0.2",
+  "publisher": "sops-view",
+  "author": {
+    "name": "sops-view"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/sops-view.git"
+  },
   "engines": {
-    "vscode": "^1.108.1"
+    "vscode": "^1.60.0"
   },
   "categories": [
     "Other"
@@ -33,9 +41,11 @@
             "*.sops.yaml",
             "*.sops.yml",
             "secrets.yaml",
-            "secrets.yml"
+            "secrets.yml",
+            "secret.yaml",
+            "secret.yml"
           ],
-          "description": "檔案名稱模式列表，用於識別需要解密的 SOPS 加密檔案（支援 glob 模式）"
+          "description": "檔案名稱模式列表，用於識別需要解密的 SOPS 加密檔案（支援 glob 模式）。如果檔案名稱不匹配，擴充功能會自動檢查檔案內容是否包含 SOPS 加密標記"
         },
         "sopsView.awsAccountProfileMapping": {
           "type": "object",
@@ -57,6 +67,8 @@
     "watch:esbuild": "node esbuild.js --watch",
     "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
     "package": "pnpm run check-types && pnpm run lint && node esbuild.js --production",
+    "vsce:package": "vsce package",
+    "package:vsix": "node package-vsix.js",
     "compile-tests": "tsc -p . --outDir out",
     "watch-tests": "tsc -p . -w --outDir out",
     "pretest": "pnpm run compile-tests && pnpm run compile && pnpm run lint",
@@ -69,7 +81,7 @@
     "minimatch": "^10.0.1"
   },
   "devDependencies": {
-    "@types/vscode": "^1.108.1",
+    "@types/vscode": "^1.60.0",
     "@types/mocha": "^10.0.10",
     "@types/node": "22.x",
     "@types/js-yaml": "^4.0.9",

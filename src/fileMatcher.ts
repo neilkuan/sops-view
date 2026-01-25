@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
+import * as fs from 'fs';
 import { minimatch } from 'minimatch';
 
 export class FileMatcher {
@@ -13,10 +14,32 @@ export class FileMatcher {
 		const fileName = path.basename(filePath);
 		const relativePath = vscode.workspace.asRelativePath(filePath, false);
 
-		return this.patterns.some(pattern => {
+		// 首先檢查檔案名稱模式
+		const matchesPattern = this.patterns.some(pattern => {
 			// 支援 glob 模式匹配
 			return minimatch(fileName, pattern) || minimatch(relativePath, pattern);
 		});
+
+		if (matchesPattern) {
+			return true;
+		}
+
+		// 如果模式不匹配，檢查檔案內容是否包含 SOPS 標記
+		try {
+			if (fs.existsSync(filePath)) {
+				const content = fs.readFileSync(filePath, 'utf8');
+				// 檢查是否包含 SOPS 加密標記
+				// 1. 檢查是否有 sops: 區塊
+				// 2. 檢查是否有 ENC[...] 格式的加密內容
+				if (content.includes('sops:') && content.match(/ENC\[AES256_GCM|ENC\[AES128_GCM|ENC\[PGP/)) {
+					return true;
+				}
+			}
+		} catch (error) {
+			// 如果讀取檔案失敗，忽略錯誤，只依賴模式匹配
+		}
+
+		return false;
 	}
 
 	getPatterns(): string[] {

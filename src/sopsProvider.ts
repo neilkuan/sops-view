@@ -160,10 +160,13 @@ export class SopsDocumentContentProvider implements vscode.TextDocumentContentPr
 
 		return new Promise((resolve, reject) => {
 			const env = { ...process.env };
-			if (awsProfile) {
-				env.AWS_PROFILE = awsProfile;
-			}
-
+			// if (awsProfile) {
+			// 	env.AWS_PROFILE = awsProfile;
+			// }
+      console.log(env);
+      console.log(sopsPath);
+      console.log(filePath);
+      console.log(path.dirname(filePath));
 			const child = spawn(sopsPath, ['-d', filePath], {
 				env,
 				cwd: path.dirname(filePath)
