@@ -131,7 +131,7 @@ SOPS 可執行檔的路徑。如果 sops 在 PATH 中，可以使用 `"sops"`。
 
 ## 發布說明
 
-### 0.0.1
+### 0.0.2
 
 初始版本：
 - 自動解密顯示 SOPS 加密檔案
@@ -145,3 +145,33 @@ SOPS 可執行檔的路徑。如果 sops 在 PATH 中，可以使用 `"sops"`。
 ## 遵循擴充功能指南
 
 確保您已閱讀並遵循 [擴充功能指南](https://code.visualstudio.com/api/references/extension-guidelines)。
+
+----
+## Install local build and Install to Vscode or Cursor
+1. 
+```bash
+[optional]: npm i -g pnpm
+pnpm install
+pnpm run compile && node package-vsix.js
+
+find sops-view-0.0.*.vsix
+```
+
+2. Open `Cursor/VsCode`
+  - Command + Shift + P > Extensions: install from VSIX
+  ![](./images/install-1.png)
+  ![](./images/install-2.png)
+  - 🚨 Command + Shift + P > Developer: Reload Window 🚨
+3. Setting AWS_PROFILE mapping  `sopsView.awsAccountProfileMapping`
+AWS Account ID 到 AWS Profile 名稱的映射。當使用 AWS KMS 加密時，擴充功能會從 KMS ARN 中提取 Account ID，然後使用對應的 AWS Profile。
+**範例：**
+```json
+{
+  "sopsView.awsAccountProfileMapping": {
+    "123456789012": "prod-profile",
+    "987654321098": "dev-profile"
+  }
+}
+```
+4. Have fun.
+![](./images/s.gif)

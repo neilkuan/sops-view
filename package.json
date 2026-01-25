@@ -2,7 +2,7 @@
   "name": "sops-view",
   "displayName": "sops-view",
   "description": "The extension for view/edit encrypt file by sops.",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "publisher": "sops-view",
   "author": {
     "name": "sops-view"
@@ -43,7 +43,10 @@
             "secrets.yaml",
             "secrets.yml",
             "secret.yaml",
-            "secret.yml"
+            "secret.yml",
+            "*.enc.json",
+            "*.enc.yml",
+            "*.enc.yaml"
           ],
           "description": "檔案名稱模式列表，用於識別需要解密的 SOPS 加密檔案（支援 glob 模式）。如果檔案名稱不匹配，擴充功能會自動檢查檔案內容是否包含 SOPS 加密標記"
         },

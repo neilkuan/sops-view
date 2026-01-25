@@ -154,7 +154,7 @@ export class SopsDocumentContentProvider implements vscode.TextDocumentContentPr
 		return undefined;
 	}
 
-	async decryptFile(filePath: string, awsProfile?: string): Promise<string> {
+	public async decryptFile(filePath: string, awsProfile?: string): Promise<string> {
 		const config = vscode.workspace.getConfiguration('sopsView');
 		const sopsPath = config.get<string>('sopsExecutablePath', 'sops');
 
@@ -207,42 +207,93 @@ export class SopsDocumentContentProvider implements vscode.TextDocumentContentPr
 				env.AWS_PROFILE = awsProfile;
 			}
 
-			// 使用 stdin 輸入，適用於所有平台
-			const child = spawn(sopsPath, ['-e', '-'], {
-				env,
-				cwd: path.dirname(filePath),
-				stdio: ['pipe', 'pipe', 'pipe']
-			});
+			// 使用類似 sops edit 的方式：
+			// 1. 將解密內容寫入臨時檔案
+			// 2. 使用 sops -e 加密臨時檔案（sops -e 會直接修改檔案）
+			// 3. 讀取加密後的內容並寫回原始檔案
+			const tempFile = path.join(path.dirname(filePath), `.sops-temp-${Date.now()}.yaml`);
+			
+			try {
+				// 寫入臨時檔案
+				fs.writeFileSync(tempFile, content, 'utf8');
 
-			let stderr = '';
+				// 使用 sops -e 加密臨時檔案（這會直接修改臨時檔案）
+				const child = spawn(sopsPath, ['-e', tempFile], {
+					env,
+					cwd: path.dirname(filePath),
+					stdio: ['pipe', 'pipe', 'pipe']
+				});
 
-			// 寫入內容到 stdin
-			child.stdin.write(content, 'utf8');
-			child.stdin.end();
+				let stderr = '';
 
-			// 收集加密後的內容
-			let encryptedContent = '';
-			child.stdout.on('data', (data) => {
-				encryptedContent += data.toString();
-			});
+				child.stderr.on('data', (data) => {
+					stderr += data.toString();
+				});
 
-			child.stderr.on('data', (data) => {
-				stderr += data.toString();
-			});
+				child.on('close', (code) => {
+					if (code === 0) {
+						try {
+							// 讀取加密後的臨時檔案內容
+							const encryptedContent = fs.readFileSync(tempFile, 'utf8');
+							// 寫回原始檔案
+							fs.writeFileSync(filePath, encryptedContent, 'utf8');
+							
+							// 清理臨時檔案
+							try {
+								if (fs.existsSync(tempFile)) {
+									fs.unlinkSync(tempFile);
+								}
+							} catch (cleanupError) {
+								// 忽略清理錯誤
+							}
+							
+							resolve();
+						} catch (readError) {
+							// 清理臨時檔案
+							try {
+								if (fs.existsSync(tempFile)) {
+									fs.unlinkSync(tempFile);
+								}
+							} catch (cleanupError) {
+								// 忽略清理錯誤
+							}
+							reject(new Error(`無法讀取加密後的檔案: ${readError instanceof Error ? readError.message : String(readError)}`));
+						}
+					} else {
+						// 清理臨時檔案
+						try {
+							if (fs.existsSync(tempFile)) {
+								fs.unlinkSync(tempFile);
+							}
+						} catch (cleanupError) {
+							// 忽略清理錯誤
+						}
+						reject(new Error(`sops 加密失敗 (exit code ${code}): ${stderr}`));
+					}
+				});
 
-			child.on('close', (code) => {
-				if (code === 0) {
-					// 寫回檔案
-					fs.writeFileSync(filePath, encryptedContent, 'utf8');
-					resolve();
-				} else {
-					reject(new Error(`sops 加密失敗 (exit code ${code}): ${stderr}`));
+				child.on('error', (error) => {
+					// 清理臨時檔案
+					try {
+						if (fs.existsSync(tempFile)) {
+							fs.unlinkSync(tempFile);
+						}
+					} catch (cleanupError) {
+						// 忽略清理錯誤
+					}
+					reject(new Error(`無法執行 sops 命令: ${error.message}`));
+				});
+			} catch (error) {
+				// 清理臨時檔案
+				try {
+					if (fs.existsSync(tempFile)) {
+						fs.unlinkSync(tempFile);
+					}
+				} catch (cleanupError) {
+					// 忽略清理錯誤
 				}
-			});
-
-			child.on('error', (error) => {
-				reject(new Error(`無法執行 sops 命令: ${error.message}`));
-			});
+				reject(new Error(`無法創建臨時檔案: ${error instanceof Error ? error.message : String(error)}`));
+			}
 		});
 	}
 

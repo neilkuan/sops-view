@@ -1,0 +1,8 @@
+stores:
+  yaml:
+    indent: 2
+# Default allow encrypt and decrypt with EKSAdministrator SSO role by kms key policy.
+creation_rules:
+  # Neil admin
+  - kms: 'arn:aws:kms:ap-east-2:807885433112:key/2f74a397-2f59-4a65-98a7-d30701384272'
+    path_regex: .*secret.yaml$
