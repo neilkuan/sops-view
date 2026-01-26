@@ -41,14 +41,6 @@ export function activate(context: vscode.ExtensionContext) {
 		if (document.uri.scheme === 'file' && fileMatcher.isSopsFile(document.uri.fsPath)) {
 			// 延遲一下，避免與 VSCode 的預設行為衝突
 			setTimeout(async () => {
-				// 關閉原始加密檔案（如果已開啟）
-				const editor = vscode.window.visibleTextEditors.find(
-					e => e.document.uri.fsPath === document.uri.fsPath
-				);
-				if (editor) {
-					await vscode.window.showTextDocument(editor.document, { preview: true });
-					await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
-				}
 				// 開啟解密版本
 				await openDecryptedFile(document.uri, context);
 			}, 200);
@@ -109,9 +101,10 @@ async function openDecryptedFile(uri: vscode.Uri, context: vscode.ExtensionConte
 	try {
 		const filePath = uri.fsPath;
 		const workspaceFolder = vscode.workspace.getWorkspaceFolder(uri);
-		
-		if (!workspaceFolder) {
-			vscode.window.showErrorMessage('無法找到工作區資料夾');
+		const fallbackRoot = path.dirname(filePath);
+
+		if (!sopsProvider.isSopsEncryptedFile(filePath)) {
+			vscode.window.showWarningMessage(`此檔案不是 SOPS 加密檔案, ${filePath}`);
 			return;
 		}
 
@@ -119,14 +112,14 @@ async function openDecryptedFile(uri: vscode.Uri, context: vscode.ExtensionConte
 		// 設置 EDITOR 環境變數為當前編輯器，然後執行 sops edit
 		// sops 會自動處理解密、編輯和加密
 		
-		// 尋找 .sops.yaml 配置
-		const sopsConfig = await sopsProvider.findSopsConfig(workspaceFolder.uri.fsPath);
+		// 尋找 .sops.yaml/.sops.yml 配置（由檔案位置向上尋找）
+		const { config: sopsConfig, configDir } = await sopsProvider.findSopsConfig(filePath);
 		
 		// 解析 KMS ARN 並確定 AWS Profile
 		const awsProfile = await sopsProvider.determineAwsProfile(
 			filePath,
 			sopsConfig,
-			workspaceFolder.uri.fsPath
+			configDir || workspaceFolder?.uri.fsPath || fallbackRoot
 		);
 
 		// 檢測當前使用的編輯器命令（cursor 或 code）
@@ -154,7 +147,11 @@ async function openDecryptedFile(uri: vscode.Uri, context: vscode.ExtensionConte
 		const config = vscode.workspace.getConfiguration('sopsView');
 		const sopsPath = config.get<string>('sopsExecutablePath', 'sops');
 
-		vscode.window.showInformationMessage('正在使用 sops edit 開啟檔案...');
+		// 顯示相對於工作區的路徑
+		const workspaceRelativePath = workspaceFolder 
+			? path.relative(workspaceFolder.uri.fsPath, filePath)
+			: path.basename(filePath);
+		vscode.window.showInformationMessage(`sops edit: ${awsProfile} ${workspaceRelativePath}`);
 
 		// 使用 shell: true 來正確處理 EDITOR 環境變數
 		// 並且收集 stderr 以便顯示錯誤訊息
@@ -175,11 +172,22 @@ async function openDecryptedFile(uri: vscode.Uri, context: vscode.ExtensionConte
 				vscode.window.showInformationMessage('檔案已成功編輯並加密儲存');
 				// 清除快取
 				sopsProvider.clearCache(uri);
-			} else {
-				const errorMsg = stderr ? `: ${stderr}` : '';
-				vscode.window.showErrorMessage(`sops edit 失敗 (exit code ${code})${errorMsg}`);
-				console.error('sops edit error:', stderr);
+				return;
 			}
+
+			if (code === 200) {
+				vscode.window.showInformationMessage('檔案未變更，未重新加密');
+				return;
+			}
+
+			if (stderr.toLowerCase().includes('metadata not found')) {
+				vscode.window.showWarningMessage('此檔案未包含 SOPS metadata');
+				return;
+			}
+
+			const errorMsg = stderr ? `: ${stderr}` : '';
+			vscode.window.showErrorMessage(`sops edit 失敗 (exit code ${code})${errorMsg}`);
+			console.error('sops edit error:', stderr);
 		});
 
 		child.on('error', (error: Error) => {
@@ -203,7 +211,7 @@ function loadConfiguration() {
 		'secrets.yml',
 		'secret.yaml',
 		'secret.yml',
-		'*.enc.json',	
+		'*.enc.json',
 		'*.enc.yml',
 		'*.enc.yaml'
 	]);

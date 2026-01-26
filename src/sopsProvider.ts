@@ -21,10 +21,24 @@ interface AwsAccountProfileMapping {
 
 export class SopsDocumentContentProvider implements vscode.TextDocumentContentProvider {
 	private readonly _onDidChange = new vscode.EventEmitter<vscode.Uri>();
-	private readonly sopsConfigCache = new Map<string, SopsConfig | null>();
+	private readonly sopsConfigCache = new Map<string, { config: SopsConfig | null; configDir?: string }>();
 	private readonly decryptedContentCache = new Map<string, { content: string; timestamp: number }>();
 
 	readonly onDidChange = this._onDidChange.event;
+
+	public isSopsEncryptedFile(filePath: string): boolean {
+		try {
+			if (!fs.existsSync(filePath)) {
+				return false;
+			}
+			const content = fs.readFileSync(filePath, 'utf8');
+			const hasSopsKey = content.includes('sops:') || /"sops"\s*:/.test(content);
+			const hasEncMarker = /ENC\[(AES256_GCM|AES128_GCM|PGP)/.test(content);
+			return hasSopsKey || hasEncMarker;
+		} catch (error) {
+			return false;
+		}
+	}
 
 	async provideTextDocumentContent(uri: vscode.Uri): Promise<string> {
 		// 從 sops-view:// URI 中提取原始檔案路徑
@@ -43,10 +57,7 @@ export class SopsDocumentContentProvider implements vscode.TextDocumentContentPr
 
 		const fileUri = vscode.Uri.file(filePath);
 		const workspaceFolder = vscode.workspace.getWorkspaceFolder(fileUri);
-		
-		if (!workspaceFolder) {
-			throw new Error('無法找到工作區資料夾');
-		}
+		const fallbackRoot = path.dirname(filePath);
 
 		// 檢查快取
 		const cached = this.decryptedContentCache.get(filePath);
@@ -59,10 +70,14 @@ export class SopsDocumentContentProvider implements vscode.TextDocumentContentPr
 			const encryptedContent = fs.readFileSync(filePath, 'utf8');
 			
 			// 尋找 .sops.yaml 配置
-			const sopsConfig = await this.findSopsConfig(workspaceFolder.uri.fsPath);
+			const { config: sopsConfig, configDir } = await this.findSopsConfig(filePath);
 			
 			// 解析 KMS ARN 並確定 AWS Profile
-			const awsProfile = await this.determineAwsProfile(filePath, sopsConfig, workspaceFolder.uri.fsPath);
+			const awsProfile = await this.determineAwsProfile(
+				filePath,
+				sopsConfig,
+				configDir || workspaceFolder?.uri.fsPath || fallbackRoot
+			);
 			
 			// 解密檔案
 			const decryptedContent = await this.decryptFile(filePath, awsProfile);
@@ -81,38 +96,46 @@ export class SopsDocumentContentProvider implements vscode.TextDocumentContentPr
 		}
 	}
 
-	public async findSopsConfig(workspaceRoot: string): Promise<SopsConfig | null> {
+	public async findSopsConfig(filePath: string): Promise<{ config: SopsConfig | null; configDir?: string }> {
+		const startDir = path.dirname(filePath);
+
 		// 檢查快取
-		if (this.sopsConfigCache.has(workspaceRoot)) {
-			return this.sopsConfigCache.get(workspaceRoot) || null;
+		if (this.sopsConfigCache.has(startDir)) {
+			return this.sopsConfigCache.get(startDir) || { config: null };
 		}
 
-		let currentDir = workspaceRoot;
+		let currentDir = startDir;
+		let configDir: string | undefined;
 		let config: SopsConfig | null = null;
 
-		// 向上搜尋 .sops.yaml
+		// 從檔案所在資料夾向上搜尋 .sops.yaml/.sops.yml
 		while (currentDir !== path.dirname(currentDir)) {
-			const configPath = path.join(currentDir, '.sops.yaml');
-			if (fs.existsSync(configPath)) {
+			const yamlPath = path.join(currentDir, '.sops.yaml');
+			const ymlPath = path.join(currentDir, '.sops.yml');
+			const candidatePath = fs.existsSync(yamlPath) ? yamlPath : (fs.existsSync(ymlPath) ? ymlPath : undefined);
+
+			if (candidatePath) {
 				try {
-					const configContent = fs.readFileSync(configPath, 'utf8');
+					const configContent = fs.readFileSync(candidatePath, 'utf8');
 					config = yaml.load(configContent) as SopsConfig;
+					configDir = currentDir;
 					break;
 				} catch (error) {
-					console.error(`讀取 .sops.yaml 失敗: ${configPath}`, error);
+					console.error(`讀取 .sops 設定失敗: ${candidatePath}`, error);
 				}
 			}
 			currentDir = path.dirname(currentDir);
 		}
 
-		this.sopsConfigCache.set(workspaceRoot, config);
-		return config;
+		const result = { config, configDir };
+		this.sopsConfigCache.set(startDir, result);
+		return result;
 	}
 
 	public async determineAwsProfile(
 		filePath: string,
 		sopsConfig: SopsConfig | null,
-		workspaceRoot: string
+		configRoot: string
 	): Promise<string | undefined> {
 		const config = vscode.workspace.getConfiguration('sopsView');
 		const accountProfileMapping = config.get<AwsAccountProfileMapping>('awsAccountProfileMapping', {});
@@ -122,7 +145,7 @@ export class SopsDocumentContentProvider implements vscode.TextDocumentContentPr
 		}
 
 		// 尋找匹配的 creation rule
-		const relativePath = path.relative(workspaceRoot, filePath);
+		const relativePath = path.relative(configRoot, filePath).split(path.sep).join('/');
 		let matchedRule = sopsConfig.creation_rules.find(rule => {
 			if (rule.path_regex) {
 				const regex = new RegExp(rule.path_regex);
