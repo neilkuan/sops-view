@@ -2,7 +2,7 @@
   "name": "sops-view",
   "displayName": "sops-view",
   "description": "The extension for view/edit encrypt file by sops.",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "publisher": "sops-view",
   "author": {
     "name": "sops-view"

@@ -209,8 +209,12 @@ function loadConfiguration() {
 		'*.sops.yml',
 		'secrets.yaml',
 		'secrets.yml',
+		'secrets.*.yaml',
+		'secrets.*.yml',
 		'secret.yaml',
 		'secret.yml',
+        'secret.*.yaml',
+		'secret.*.yml',
 		'*.enc.json',
 		'*.enc.yml',
 		'*.enc.yaml'
