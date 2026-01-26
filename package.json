@@ -2,14 +2,14 @@
   "name": "sops-view",
   "displayName": "sops-view",
   "description": "The extension for view/edit encrypt file by sops.",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "publisher": "sops-view",
   "author": {
     "name": "sops-view"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/sops-view.git"
+    "url": "https://github.com/neilkuan/sops-view.git"
   },
   "engines": {
     "vscode": "^1.60.0"
@@ -30,6 +30,14 @@
         "title": "SOPS: 重新載入解密檔案"
       }
     ],
+    "keybindings": [
+      {
+        "command": "sops-view.openDecrypted",
+        "key": "ctrl+shift+d",
+        "mac": "ctrl+shift+d",
+        "when": "editorTextFocus"
+      }
+    ],
     "configuration": {
       "title": "SOPS View",
       "properties": {
@@ -44,6 +52,10 @@
             "secrets.yml",
             "secret.yaml",
             "secret.yml",
+            "secrets.*.yaml",
+            "secrets.*.yml",
+            "secret.*.yaml",
+            "secret.*.yml",
             "*.enc.json",
             "*.enc.yml",
             "*.enc.yaml"
