@@ -23,8 +23,13 @@ export class SopsDocumentContentProvider implements vscode.TextDocumentContentPr
 	private readonly _onDidChange = new vscode.EventEmitter<vscode.Uri>();
 	private readonly sopsConfigCache = new Map<string, { config: SopsConfig | null; configDir?: string }>();
 	private readonly decryptedContentCache = new Map<string, { content: string; timestamp: number }>();
+	private outputChannel?: vscode.OutputChannel;
 
 	readonly onDidChange = this._onDidChange.event;
+
+	constructor(outputChannel?: vscode.OutputChannel) {
+		this.outputChannel = outputChannel;
+	}
 
 	public isSopsEncryptedFile(filePath: string): boolean {
 		try {
@@ -91,7 +96,7 @@ export class SopsDocumentContentProvider implements vscode.TextDocumentContentPr
 			return decryptedContent;
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : String(error);
-			vscode.window.showErrorMessage(`解密檔案失敗: ${errorMessage}`);
+			vscode.window.showErrorMessage(`SOPS-View: 解密檔案失敗: ${errorMessage}`);
 			throw error;
 		}
 	}
@@ -180,16 +185,24 @@ export class SopsDocumentContentProvider implements vscode.TextDocumentContentPr
 	public async decryptFile(filePath: string, awsProfile?: string): Promise<string> {
 		const config = vscode.workspace.getConfiguration('sopsView');
 		const sopsPath = config.get<string>('sopsExecutablePath', 'sops');
+		const debugMode = config.get<boolean>('debug', false);
+
+		const log = (message: string) => {
+			if (debugMode && this.outputChannel) {
+				this.outputChannel.appendLine(`[DEBUG] ${message}`);
+			}
+		};
 
 		return new Promise((resolve, reject) => {
 			const env = { ...process.env };
 			// if (awsProfile) {
 			// 	env.AWS_PROFILE = awsProfile;
 			// }
-      console.log(env);
-      console.log(sopsPath);
-      console.log(filePath);
-      console.log(path.dirname(filePath));
+			log(`解密檔案: ${filePath}`);
+			log(`SOPS 路徑: ${sopsPath}`);
+			log(`工作目錄: ${path.dirname(filePath)}`);
+			log(`AWS Profile: ${awsProfile || '未設定'}`);
+			
 			const child = spawn(sopsPath, ['-d', filePath], {
 				env,
 				cwd: path.dirname(filePath)
@@ -208,14 +221,19 @@ export class SopsDocumentContentProvider implements vscode.TextDocumentContentPr
 
 			child.on('close', (code) => {
 				if (code === 0) {
+					log('解密成功');
 					resolve(stdout);
 				} else {
-					reject(new Error(`sops 解密失敗 (exit code ${code}): ${stderr || stdout}`));
+					const error = `sops 解密失敗 (exit code ${code}): ${stderr || stdout}`;
+					log(`解密失敗: ${error}`);
+					reject(new Error(error));
 				}
 			});
 
 			child.on('error', (error) => {
-				reject(new Error(`無法執行 sops 命令: ${error.message}`));
+				const errorMsg = `無法執行 sops 命令: ${error.message}`;
+				log(`執行錯誤: ${errorMsg}`);
+				reject(new Error(errorMsg));
 			});
 		});
 	}

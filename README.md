@@ -89,6 +89,25 @@ SOPS 可執行檔的路徑。如果 sops 在 PATH 中，可以使用 `"sops"`。
 }
 ```
 
+### `sopsView.debug`
+
+啟用 debug 模式，會在 Output Channel 中顯示詳細的日誌訊息。
+
+**預設值：** `false`
+
+**範例：**
+```json
+{
+  "sopsView.debug": true
+}
+```
+
+啟用後，可以在 VSCode 的 **Output** 面板中選擇 **"SOPS View"** 來查看詳細的日誌訊息，包括：
+- 檔案處理過程
+- SOPS 命令執行詳情
+- 環境變數設定
+- 錯誤訊息和堆疊追蹤
+
 ## 使用方式
 
 ### 自動開啟
@@ -122,6 +141,41 @@ SOPS 可執行檔的路徑。如果 sops 在 PATH 中，可以使用 `"sops"`。
 3. **KMS ARN 解析**：從 `.sops.yaml` 中的 `creation_rules` 提取 KMS ARN，並解析出 AWS Account ID
 4. **Profile 映射**：根據 Account ID 查找對應的 AWS Profile，並設定 `AWS_PROFILE` 環境變數
 5. **解密/加密**：使用 SOPS 命令解密或加密檔案內容
+
+## 疑難排解
+
+### 查看 Debug 日誌
+
+如果遇到問題，可以啟用 debug 模式來查看詳細的日誌：
+
+1. 開啟 VSCode 設定（`Cmd+,` / `Ctrl+,`）
+2. 搜尋 `sopsView.debug` 並啟用
+3. 或直接在 `settings.json` 中添加：
+   ```json
+   {
+     "sopsView.debug": true
+   }
+   ```
+4. 重新執行操作（例如點擊加密檔案）
+5. 開啟 **Output** 面板（`Cmd+Shift+U` / `Ctrl+Shift+U`）
+6. 在下拉選單中選擇 **"SOPS View"** 查看日誌
+
+### 常見問題
+
+- **sops edit 失敗**：
+  - 檢查 Output Channel 中的詳細錯誤訊息
+  - 確認 `EDITOR` 環境變數是否正確設定（應該是 `cursor --wait` 或 `code --wait`）
+  - 確認 SOPS 已正確安裝並可在終端機中執行
+  - 檢查檔案是否包含有效的 SOPS metadata
+
+- **解密失敗**：
+  - 確認 `.sops.yaml` 配置檔案存在且正確
+  - 如果使用 AWS KMS，確認對應的 AWS Profile 已正確配置
+  - 檢查 AWS 憑證是否有效
+
+- **無法找到 SOPS 命令**：
+  - 確認 SOPS 已安裝並在 PATH 中
+  - 或在設定中指定完整路徑：`"sopsView.sopsExecutablePath": "/usr/local/bin/sops"`
 
 ## 已知問題
 

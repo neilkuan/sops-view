@@ -29,9 +29,11 @@ export class FileMatcher {
 			if (fs.existsSync(filePath)) {
 				const content = fs.readFileSync(filePath, 'utf8');
 				// 檢查是否包含 SOPS 加密標記
-				// 1. 檢查是否有 sops: 區塊
-				// 2. 檢查是否有 ENC[...] 格式的加密內容
-				if (content.includes('sops:') && content.match(/ENC\[AES256_GCM|ENC\[AES128_GCM|ENC\[PGP/)) {
+				// 1. 檢查是否有 sops: 區塊（支援 YAML 和 JSON 格式）
+				const hasSopsKey = content.includes('sops:') || /"sops"\s*:/.test(content);
+				// 2. 檢查是否有 ENC[...] 格式的加密內容（使用更準確的正則表達式）
+				const hasEncMarker = /ENC\[(AES256_GCM|AES128_GCM|PGP)/.test(content);
+				if (hasSopsKey || hasEncMarker) {
 					return true;
 				}
 			}
