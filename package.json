@@ -2,7 +2,7 @@
   "name": "sops-view",
   "displayName": "sops-view",
   "description": "The extension for view/edit encrypt file by sops.",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "publisher": "sops-view",
   "author": {
     "name": "sops-view"
@@ -28,14 +28,33 @@
       {
         "command": "sops-view.reload",
         "title": "SOPS: 重新載入解密檔案"
+      },
+      {
+        "command": "sops-view.runCommand",
+        "title": "SOPS: 執行自訂命令"
       }
     ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "sops-view.runCommand",
+          "when": "resourceExtname == .yaml || resourceExtname == .yml",
+          "group": "sops-view"
+        }
+      ]
+    },
     "keybindings": [
       {
         "command": "sops-view.openDecrypted",
         "key": "ctrl+shift+d",
         "mac": "ctrl+shift+d",
         "when": "editorTextFocus"
+      },
+      {
+        "command": "sops-view.runCommand",
+        "key": "ctrl+shift+r",
+        "mac": "cmd+shift+r",
+        "when": "explorerViewletVisible && (resourceExtname == .yaml || resourceExtname == .yml)"
       }
     ],
     "configuration": {
@@ -74,7 +93,7 @@
         },
         "sopsView.debug": {
           "type": "boolean",
-          "default": true,
+          "default": false,
           "description": "啟用 debug 模式，會在 Output Channel 中顯示詳細的日誌訊息。可以在 Output 面板中選擇 \"SOPS View\" 查看日誌"
         }
       }

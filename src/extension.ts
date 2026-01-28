@@ -2,6 +2,8 @@
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
 import * as path from 'path';
+import * as fs from 'fs';
+import * as yaml from 'js-yaml';
 import { minimatch } from 'minimatch';
 import { SopsDocumentContentProvider } from './sopsProvider';
 import { FileMatcher } from './fileMatcher';
@@ -204,12 +206,36 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	);
 
+	// 註冊命令：執行自訂命令（從 .sops-view.yaml）
+	const runCommand = vscode.commands.registerCommand(
+		'sops-view.runCommand',
+		async (uri?: vscode.Uri) => {
+			if (!uri) {
+				const activeEditor = vscode.window.activeTextEditor;
+				if (activeEditor) {
+					uri = activeEditor.document.uri;
+				} else {
+					vscode.window.showErrorMessage('SOPS-View: 請先選擇一個檔案');
+					return;
+				}
+			}
+
+			if (uri.scheme !== 'file') {
+				vscode.window.showErrorMessage('SOPS-View: 只能對檔案執行此命令');
+				return;
+			}
+
+			await runCommandFromConfig(uri);
+		}
+	);
+
 	context.subscriptions.push(
 		providerRegistration,
 		configWatcher,
 		fileWatcher,
 		openDecryptedCommand,
-		reloadCommand
+		reloadCommand,
+		runCommand
 	);
 }
 
@@ -450,6 +476,201 @@ async function openDecryptedFile(uri: vscode.Uri, context: vscode.ExtensionConte
 	} catch (error) {
 		const errorMessage = error instanceof Error ? error.message : String(error);
 		const fullError = `SOPS-View: 無法開啟解密檔案: ${errorMessage}`;
+		logError(fullError);
+		if (error instanceof Error && error.stack) {
+			logError(`錯誤堆疊: ${error.stack}`);
+		}
+		vscode.window.showErrorMessage(fullError);
+		outputChannel.show(true);
+	}
+}
+
+async function runCommandFromConfig(uri: vscode.Uri) {
+	const config = vscode.workspace.getConfiguration('sopsView');
+	const debugMode = config.get<boolean>('debug', false);
+	
+	const log = (message: string) => {
+		if (debugMode) {
+			outputChannel.appendLine(`[DEBUG] ${message}`);
+		}
+		console.log(message);
+	};
+	
+	const logError = (message: string) => {
+		outputChannel.appendLine(`[ERROR] ${message}`);
+		console.error(message);
+	};
+
+	try {
+		const filePath = uri.fsPath;
+		const workspaceFolder = vscode.workspace.getWorkspaceFolder(uri);
+		const workspaceRoot = workspaceFolder?.uri.fsPath || path.dirname(filePath);
+		
+		log(`開始尋找 .sops-view.yaml 配置檔案...`);
+		
+		// 從檔案位置向上尋找 .sops-view.yaml
+		let currentDir = path.dirname(filePath);
+		let configPath: string | null = null;
+		
+		while (currentDir !== path.dirname(currentDir)) {
+			const potentialConfigPath = path.join(currentDir, '.sops-view.yaml');
+			if (fs.existsSync(potentialConfigPath)) {
+				configPath = potentialConfigPath;
+				log(`找到配置檔案: ${configPath}`);
+				break;
+			}
+			currentDir = path.dirname(currentDir);
+		}
+		
+		if (!configPath) {
+			const msg = 'SOPS-View: 找不到 .sops-view.yaml 配置檔案';
+			logError(msg);
+			vscode.window.showErrorMessage(msg);
+			return;
+		}
+		
+		// 讀取配置檔案
+		log(`讀取配置檔案: ${configPath}`);
+		const configContent = fs.readFileSync(configPath, 'utf8');
+		
+		// 解析 YAML
+		let configData: any;
+		try {
+			configData = yaml.load(configContent);
+		} catch (error) {
+			const errorMsg = error instanceof Error ? error.message : String(error);
+			const msg = `SOPS-View: 無法解析 .sops-view.yaml: ${errorMsg}`;
+			logError(msg);
+			vscode.window.showErrorMessage(msg);
+			return;
+		}
+		
+		if (!configData || typeof configData !== 'object') {
+			const msg = 'SOPS-View: .sops-view.yaml 格式錯誤';
+			logError(msg);
+			vscode.window.showErrorMessage(msg);
+			return;
+		}
+		
+		// 計算相對路徑（相對於工作區根目錄）
+		const relativePath = path.relative(workspaceRoot, filePath);
+		const fileName = path.basename(filePath);
+		// 標準化路徑分隔符（Windows 使用 \，Unix 使用 /）
+		const normalizedRelativePath = relativePath.replace(/\\/g, '/');
+		log(`檔案相對路徑: ${normalizedRelativePath}`);
+		
+		// 尋找對應的命令
+		// 支援多種路徑格式：相對路徑、絕對路徑、檔案名稱、glob 模式等
+		let command: string | undefined;
+		let matchedKey: string | undefined;
+		
+		// 1. 先嘗試精確匹配相對路徑
+		if (configData[relativePath]) {
+			command = configData[relativePath];
+			matchedKey = relativePath;
+			log(`找到命令（精確相對路徑）: ${relativePath}`);
+		}
+		
+		// 2. 如果沒找到，嘗試標準化路徑的精確匹配
+		if (!command && normalizedRelativePath !== relativePath) {
+			if (configData[normalizedRelativePath]) {
+				command = configData[normalizedRelativePath];
+				matchedKey = normalizedRelativePath;
+				log(`找到命令（標準化相對路徑）: ${normalizedRelativePath}`);
+			}
+		}
+		
+		// 3. 如果沒找到，嘗試檔案名稱的精確匹配
+		if (!command) {
+			if (configData[fileName]) {
+				command = configData[fileName];
+				matchedKey = fileName;
+				log(`找到命令（檔案名稱）: ${fileName}`);
+			}
+		}
+		
+		// 4. 如果還是沒找到，嘗試 glob 模式匹配
+		// 優先匹配更具體的模式（例如 */secret.yaml 應該在 secret.yaml 之前匹配）
+		if (!command) {
+			// 先收集所有可能的匹配項
+			const matches: Array<{ key: string; value: string; specificity: number }> = [];
+			
+			for (const [key, value] of Object.entries(configData)) {
+				// 檢查是否為 glob 模式（包含 * 或 ? 等特殊字符）
+				const isGlobPattern = /[*?\[\]{}]/.test(key);
+				
+				if (isGlobPattern) {
+					// 嘗試匹配相對路徑
+					if (minimatch(normalizedRelativePath, key) || minimatch(relativePath, key)) {
+						// 計算模式的具體程度（* 越少越具體）
+						const specificity = (key.match(/\*/g) || []).length;
+						matches.push({ key, value: value as string, specificity });
+						log(`找到 glob 匹配候選: ${key} (specificity: ${specificity})`);
+					}
+					// 也嘗試匹配檔案名稱
+					else if (minimatch(fileName, key)) {
+						const specificity = (key.match(/\*/g) || []).length;
+						matches.push({ key, value: value as string, specificity });
+						log(`找到 glob 匹配候選（檔案名稱）: ${key} (specificity: ${specificity})`);
+					}
+				}
+			}
+			
+			// 選擇最具體的匹配（specificity 越小越具體）
+			if (matches.length > 0) {
+				matches.sort((a, b) => a.specificity - b.specificity);
+				command = matches[0].value;
+				matchedKey = matches[0].key;
+				log(`找到命令（glob 匹配，最具體）: ${matchedKey}`);
+			}
+		}
+		
+		if (!command) {
+			const msg = `SOPS-View: 在 .sops-view.yaml 中找不到對應的命令（路徑: ${relativePath}）`;
+			logError(msg);
+			vscode.window.showWarningMessage(msg);
+			return;
+		}
+		
+		// 確保 command 是字串
+		if (typeof command !== 'string') {
+			const msg = 'SOPS-View: 命令格式錯誤，必須是字串';
+			logError(msg);
+			vscode.window.showErrorMessage(msg);
+			return;
+		}
+		
+		log(`準備執行命令: ${command}`);
+		
+		// 清理命令
+		const commandToSend = command.trim();
+		
+		// 創建終端
+		const terminal = vscode.window.createTerminal({
+			name: 'SOPS View Command',
+			cwd: path.dirname(filePath)
+		});
+		
+		terminal.show();
+		
+		// 等待 2.5 秒確保終端完全準備好（特別是 fish shell）
+		await new Promise<void>((resolve) => {
+			setTimeout(() => {
+				resolve();
+			}, 2500);
+		});
+		
+		// 發送命令
+		// shouldExecute=true 會自動添加換行符並執行命令
+		terminal.sendText(commandToSend, true);
+		
+		const msg = `SOPS-View: 已執行命令: ${commandToSend}`;
+		log(msg);
+		vscode.window.showInformationMessage(msg);
+		
+	} catch (error) {
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		const fullError = `SOPS-View: 執行命令時發生錯誤: ${errorMessage}`;
 		logError(fullError);
 		if (error instanceof Error && error.stack) {
 			logError(`錯誤堆疊: ${error.stack}`);

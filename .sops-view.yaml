@@ -1,0 +1,2 @@
+"*/**/secret.yaml": echo "AWS_PROFILE neil terraform plan"
+secret.yaml: echo "AWS_PROFILE neil terraform plan"

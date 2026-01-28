@@ -1,0 +1,14 @@
+# .sops-view.yaml 範例檔案
+# 格式：檔案路徑（相對或絕對）: 要執行的命令
+
+# 使用相對路徑（相對於工作區根目錄）
+secret.yaml: echo "執行 secret.yaml 的命令" && ls -la
+
+# 使用檔案名稱
+secret-123.yml: kubectl apply -f secret-123.yml
+
+# 使用 glob 模式
+secret*.yaml: sops -d secret.yaml | kubectl apply -f -
+
+# 使用絕對路徑（相對於工作區根目錄）
+path/to/secret.yaml: ./scripts/deploy-secret.sh
