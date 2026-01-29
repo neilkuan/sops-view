@@ -693,7 +693,7 @@ function loadConfiguration() {
 		'secrets.*.yml',
 		'secret.yaml',
 		'secret.yml',
-    'secret.*.yaml',
+        'secret.*.yaml',
 		'secret.*.yml',
 		'*.enc.json',
 		'*.enc.yml',
