@@ -12,7 +12,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ### Changed
 - 升級 GitHub Actions 至最新版本（Node.js 24 runtime）：
-  - `pnpm/action-setup` v4 → v6
+  - `pnpm/action-setup` v4（v4.4.0, Node.js 24）
   - `actions/setup-node` v4 → v6
   - `softprops/action-gh-release` v2 → v3
 
