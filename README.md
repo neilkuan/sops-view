@@ -89,6 +89,19 @@ SOPS 可執行檔的路徑。如果 sops 在 PATH 中，可以使用 `"sops"`。
 }
 ```
 
+### `sopsView.editorCommand`
+
+自訂 `EDITOR` 環境變數，用於 `sops edit` 命令。留空則自動偵測（Cursor: `cursor --wait`, Kiro: `kiro --wait`, 其他: `code --wait`）。
+
+**預設值：** `""`（自動偵測）
+
+**範例：**
+```json
+{
+  "sopsView.editorCommand": "vim"
+}
+```
+
 ### `sopsView.debug`
 
 啟用 debug 模式，會在 Output Channel 中顯示詳細的日誌訊息。
