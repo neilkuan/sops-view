@@ -308,15 +308,18 @@ async function openDecryptedFile(uri: vscode.Uri, context: vscode.ExtensionConte
 		);
 		log(`AWS Profile: ${awsProfile || '未設定'}`);
 
-		// 檢測當前使用的編輯器命令（cursor 或 code）
-		// 使用命令名稱而不是完整路徑，這樣更可靠
+		// 檢測當前使用的編輯器命令
 		let editorCommand: string;
 		
-		// 檢查是否是 Cursor（process.execPath 包含 Cursor）
-		if (process.execPath.includes('Cursor')) {
+		// 優先使用使用者自訂的 EDITOR 命令
+		const customEditorCommand = config.get<string>('editorCommand', '');
+		if (customEditorCommand) {
+			editorCommand = customEditorCommand;
+		} else if (process.execPath.includes('Cursor')) {
 			editorCommand = 'cursor --wait';
+		} else if (process.execPath.includes('Kiro')) {
+			editorCommand = 'kiro --wait';
 		} else {
-			// 預設使用 code
 			editorCommand = 'code --wait';
 		}
 		
