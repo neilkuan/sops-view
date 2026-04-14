@@ -76,12 +76,12 @@ jobs:
           git push origin "$TAG"
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 8
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
           cache: 'pnpm'
@@ -106,7 +106,7 @@ jobs:
           ls -lh "$VSIX_FILE"
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.get_version.outputs.version_tag }}
           name: Release ${{ steps.get_version.outputs.version_tag }}
