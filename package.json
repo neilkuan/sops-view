@@ -2,7 +2,7 @@
   "name": "sops-view",
   "displayName": "sops-view",
   "description": "The extension for view/edit encrypt file by sops.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "sops-view",
   "author": {
     "name": "sops-view"
@@ -100,7 +100,7 @@
         "sopsView.editorCommand": {
           "type": "string",
           "default": "",
-          "description": "自訂 EDITOR 環境變數，用於 sops edit 命令。留空則自動偵測（Cursor: cursor --wait, Kiro: kiro --wait, 其他: code --wait）"
+          "description": "自訂 EDITOR 環境變數，用於 sops edit 命令，例如 \"kiro --wait\" 或 \"code --wait\"。可執行檔可填相對於工作區根目錄的路徑，例如 \"./bin/kiro --wait\"。留空則自動偵測（Cursor: cursor --wait, Kiro: kiro --wait, 其他: code --wait）"
         },
         "sopsView.debug": {
           "type": "boolean",

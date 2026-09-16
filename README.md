@@ -108,14 +108,19 @@ SOPS 可執行檔的路徑。如果 sops 在 PATH 中，可以使用 `"sops"`。
 
 ### `sopsView.editorCommand`
 
-自訂 `EDITOR` 環境變數，用於 `sops edit` 命令。留空則自動偵測（Cursor: `cursor --wait`, Kiro: `kiro --wait`, 其他: `code --wait`）。
+自訂 `EDITOR` 環境變數，用於 `sops edit` 命令。可執行檔可填命令名稱、絕對路徑，或相對於工作區根目錄的路徑。留空則自動偵測（Cursor: `cursor --wait`, Kiro: `kiro --wait`, 其他: `code --wait`）。
 
 **預設值：** `""`（自動偵測）
 
 **範例：**
 ```json
 {
-  "sopsView.editorCommand": "vim"
+  "sopsView.editorCommand": "kiro --wait"
+}
+```
+```json
+{
+  "sopsView.editorCommand": "./bin/code --wait"
 }
 ```
 

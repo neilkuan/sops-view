@@ -6,6 +6,12 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.1.1]
+
+### Added
+- `sopsView.editorCommand` 支援相對於工作區根目錄的可執行檔路徑，例如 `./bin/kiro --wait`
+- 預設 `filePatterns`、Explorer 右鍵選單與 `.sops-view.yaml` 自訂命令支援 `.json` 檔案
+
 ### Added
 - 新增 `sopsView.editorCommand` 設定項，允許使用者自訂 EDITOR 環境變數，覆蓋自動偵測的值
 - 新增 Kiro IDE 支援，自動偵測 Kiro 並設定 `EDITOR=kiro --wait`

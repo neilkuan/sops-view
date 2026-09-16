@@ -314,7 +314,12 @@ async function openDecryptedFile(uri: vscode.Uri, context: vscode.ExtensionConte
 		// 優先使用使用者自訂的 EDITOR 命令
 		const customEditorCommand = config.get<string>('editorCommand', '');
 		if (customEditorCommand) {
-			editorCommand = customEditorCommand;
+			// 第一個 token 若是相對路徑（含 /，非絕對路徑），以工作區根目錄為基準解析
+			const [bin, ...args] = customEditorCommand.trim().split(/\s+/);
+			const resolvedBin = bin.includes('/') && !path.isAbsolute(bin)
+				? path.resolve(workspaceFolder?.uri.fsPath || fallbackRoot, bin)
+				: bin;
+			editorCommand = [`"${resolvedBin}"`, ...args].join(' ');
 		} else if (process.execPath.includes('Cursor')) {
 			editorCommand = 'cursor --wait';
 		} else if (process.execPath.includes('Kiro')) {
