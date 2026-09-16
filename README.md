@@ -43,10 +43,25 @@
 [
   "*.encrypted.yaml",
   "*.encrypted.yml",
+  "*.encrypted.json",
   "*.sops.yaml",
   "*.sops.yml",
+  "*.sops.json",
   "secrets.yaml",
-  "secrets.yml"
+  "secrets.yml",
+  "secrets.json",
+  "secret.yaml",
+  "secret.yml",
+  "secret.json",
+  "secrets.*.yaml",
+  "secrets.*.yml",
+  "secrets.*.json",
+  "secret.*.yaml",
+  "secret.*.yml",
+  "secret.*.json",
+  "*.enc.json",
+  "*.enc.yml",
+  "*.enc.yaml"
 ]
 ```
 
@@ -55,7 +70,9 @@
 {
   "sopsView.filePatterns": [
     "*.encrypted.yaml",
-    "secrets/**/*.yaml"
+    "*.encrypted.json",
+    "secrets/**/*.yaml",
+    "secrets/**/*.json"
   ]
 }
 ```

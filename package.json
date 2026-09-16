@@ -38,7 +38,7 @@
       "explorer/context": [
         {
           "command": "sops-view.runCommand",
-          "when": "resourceExtname == .yaml || resourceExtname == .yml",
+          "when": "resourceExtname == .yaml || resourceExtname == .yml || resourceExtname == .json",
           "group": "sops-view"
         }
       ]
@@ -65,16 +65,22 @@
           "default": [
             "*.encrypted.yaml",
             "*.encrypted.yml",
+            "*.encrypted.json",
             "*.sops.yaml",
             "*.sops.yml",
+            "*.sops.json",
             "secrets.yaml",
             "secrets.yml",
+            "secrets.json",
             "secret.yaml",
             "secret.yml",
+            "secret.json",
             "secrets.*.yaml",
             "secrets.*.yml",
+            "secrets.*.json",
             "secret.*.yaml",
             "secret.*.yml",
+            "secret.*.json",
             "*.enc.json",
             "*.enc.yml",
             "*.enc.yaml"

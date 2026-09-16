@@ -1,2 +1,5 @@
 "*/**/secret.yaml": echo "AWS_PROFILE neil terraform plan"
 secret.yaml: echo "AWS_PROFILE neil terraform plan"
+a.json: echo "執行 secret.json 的命令" && cat secret.json
+
+"*/**/a.json": echo "執行 secret.json 的命令" && cat secret.json
