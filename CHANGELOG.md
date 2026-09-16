@@ -6,6 +6,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.1.2]
+
+### Fixed
+- 自動偵測編輯器改用 `vscode.env.appRoot/bin/` 內建 CLI wrapper。修正在 Kiro 中 `kiro --wait` 會誤呼叫 `kiro-cli`、或執行 Electron 主程式導致 `bad option: --wait` / `SyntaxError` 的問題
+
 ## [0.1.1]
 
 ### Added

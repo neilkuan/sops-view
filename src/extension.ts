@@ -320,12 +320,15 @@ async function openDecryptedFile(uri: vscode.Uri, context: vscode.ExtensionConte
 				? path.resolve(workspaceFolder?.uri.fsPath || fallbackRoot, bin)
 				: bin;
 			editorCommand = [`"${resolvedBin}"`, ...args].join(' ');
-		} else if (process.execPath.includes('Cursor')) {
-			editorCommand = 'cursor --wait';
-		} else if (process.execPath.includes('Kiro')) {
-			editorCommand = 'kiro --wait';
 		} else {
-			editorCommand = 'code --wait';
+			// 使用目前執行中編輯器內建的 CLI wrapper（<appRoot>/bin/<cli>），適用 VS Code / Cursor / Kiro 等 fork。
+			// 注意：不能用 PATH 上的 `kiro`（那是 kiro-cli），也不能直接執行 Electron 主程式（不接受 --wait）
+			const binDir = path.join(vscode.env.appRoot, 'bin');
+			const isWin = process.platform === 'win32';
+			const cli = fs.existsSync(binDir)
+				? fs.readdirSync(binDir).find((f: string) => f.endsWith('.cmd') === isWin)
+				: undefined;
+			editorCommand = cli ? `"${path.join(binDir, cli)}" --wait` : 'code --wait';
 		}
 		
 		log(`EDITOR 命令: ${editorCommand}`);

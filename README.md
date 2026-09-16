@@ -108,7 +108,9 @@ SOPS 可執行檔的路徑。如果 sops 在 PATH 中，可以使用 `"sops"`。
 
 ### `sopsView.editorCommand`
 
-自訂 `EDITOR` 環境變數，用於 `sops edit` 命令。可執行檔可填命令名稱、絕對路徑，或相對於工作區根目錄的路徑。留空則自動偵測（Cursor: `cursor --wait`, Kiro: `kiro --wait`, 其他: `code --wait`）。
+自訂 `EDITOR` 環境變數，用於 `sops edit` 命令。可執行檔可填命令名稱、絕對路徑，或相對於工作區根目錄的路徑。留空則自動使用目前執行中編輯器內建的 CLI wrapper（`<appRoot>/bin/` 下的 `code` / `cursor` 等）加 `--wait`，VS Code、Cursor、Kiro 皆適用。
+
+> 注意：PATH 上的 `kiro` 是 `kiro-cli`（AI CLI 工具），不是 Kiro IDE；Electron 主程式（`Kiro.app/Contents/MacOS/Kiro`）也不接受 `--wait`。Kiro IDE 的 CLI 是 `/Applications/Kiro.app/Contents/Resources/app/bin/code`。
 
 **預設值：** `""`（自動偵測）
 
